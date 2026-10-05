@@ -1,0 +1,30 @@
+name: Push zips to VPS (dispatch ecom-test-ci publish-modules)
+
+# When a module zip changes in THIS repo, tell ecom-test-ci to stage the zips
+# onto the VPS activation server (which serves them to the app's one-tap
+# flasher behind valid-activation auth). The heavy lifting lives in
+# abdisalam-amkush/ecom-test-ci/.github/workflows/publish-modules.yml.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - "AlwaysStrong-*.zip"
+      - "Zygisk-*.zip"
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger ecom-test-ci publish-modules
+        env:
+          PAT: ${{ secrets.ECOM_CI_PAT }}
+        run: |
+          code=$(curl -s -o /tmp/r.json -w '%{http_code}' -X POST \
+            -H "Authorization: token $PAT" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/abdisalam-amkush/ecom-test-ci/actions/workflows/publish-modules.yml/dispatches \
+            -d '{"ref":"main"}')
+          cat /tmp/r.json; echo
+          [ "$code" = "204" ] || { echo "::error::dispatch failed ($code)"; exit 1; }
